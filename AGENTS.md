@@ -21,9 +21,10 @@ is compared byte for byte). Read `docs/agent/<topic>.md` in this folder instead 
 `{{DOCS_URL}}`; for any other one, `DEVELOPERS.md` or `STORE-LISTING.md`, if present, says what it is on
 that computer; otherwise it isn't available there: do the task without it and say so in one line.
 
-## First: is this site on the required template version? (0.10.20)
-Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.20, this site
-has problems these rules can't fix for it:** below 0.10.20 `npm run platform -- check` puts a half-done merge back
+## First: is this site on the required template version? (0.10.21)
+Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.21, this site
+has problems these rules can't fix for it:** below 0.10.21 a list bound as one raw-SQL parameter (`unnest(${ids}::text[])`,
+`= ANY(${ids})`) fails on the live database with `malformed array literal` although every local test passes; below 0.10.20 `npm run platform -- check` puts a half-done merge back
 with the wrong file, and on a developer's computer its AI can open a placeholder as a link; below 0.10.19 it can't tell when the template's own files
 were changed, and a Windows copy can change their line endings; below 0.10.18 its sample data doesn't stop on a database in use, and it can't be
 signed in to on a developer's own computer; below 0.10.17 it ships packages with known security problems (`undici`);

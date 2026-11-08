@@ -4,7 +4,7 @@ import {DriverAdapterError} from '@prisma/driver-adapter-utils';
 import {describe, expect, it, vi} from 'vitest';
 
 import {CONVERSION_FROM_ADAPTER_VERSION} from '../src/platform/db-socket-conversion';
-import {isPlainRead, SocketConnection} from '../src/platform/db-socket';
+import {isPlainRead, pgArrayLiteral, SocketConnection, toParams} from '../src/platform/db-socket';
 
 type Reply = {rows?: unknown[][]; error?: unknown; hold?: Promise<unknown>; closes?: boolean};
 type Script = (sql: string) => Reply | undefined;
@@ -404,5 +404,32 @@ describe('the copied conversion', () => {
   it('matches the installed adapter: copy it again when this fails', () => {
     const pkg = JSON.parse(readFileSync(new URL('../node_modules/@prisma/adapter-ppg/package.json', import.meta.url), 'utf8'));
     expect(pkg.version).toBe(CONVERSION_FROM_ADAPTER_VERSION);
+  });
+});
+
+describe('array parameters', () => {
+  const list = {scalarType: 'string', arity: 'list'} as const;
+
+  it('sends a JS array as a Postgres array literal, not as "a,b"', () => {
+    expect(toParams({args: [['a', 'b']], argTypes: [list]} as never)).toEqual(['{"a","b"}']);
+    expect(toParams({args: [[1, 2, null]], argTypes: [{scalarType: 'int', arity: 'list'}]} as never)).toEqual(['{"1","2",NULL}']);
+    expect(toParams({args: [[]], argTypes: [list]} as never)).toEqual(['{}']);
+  });
+
+  it('escapes quotes and backslashes, nests, and writes dates as ISO', () => {
+    expect(pgArrayLiteral(['q"x', 'back\\s', 'a,b', ' sp '])).toBe('{"q\\"x","back\\\\s","a,b"," sp "}');
+    expect(pgArrayLiteral([[1, 2], [3]])).toBe('{{"1","2"},{"3"}}');
+    expect(pgArrayLiteral([new Date('2026-01-02T03:04:05.000Z')])).toBe('{"2026-01-02T03:04:05.000Z"}');
+  });
+
+  it('leaves JSON arrays, bytes and plain values as Prisma converts them', () => {
+    const args = [[1, 'x'], new Uint8Array([1, 255]), 'plain', 7];
+    const argTypes = [
+      {scalarType: 'json', arity: 'scalar'},
+      {scalarType: 'bytes', arity: 'scalar'},
+      {scalarType: 'string', arity: 'scalar'},
+      {scalarType: 'int', arity: 'scalar'},
+    ];
+    expect(toParams({args, argTypes} as never)).toEqual(['[1,"x"]', '\\x01ff', 'plain', '7']);
   });
 });

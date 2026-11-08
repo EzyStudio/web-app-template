@@ -114,9 +114,34 @@ function adapterError(error: unknown): unknown {
   return new DriverAdapterError(convertDriverError(error) as ConstructorParameters<typeof DriverAdapterError>[0]);
 }
 
+/** One Postgres array literal (`{"a","b",NULL}`) for a JS array, nested arrays included. */
+export function pgArrayLiteral(values: readonly unknown[]): string {
+  const item = (value: unknown): string => {
+    if (value === null || value === undefined) return 'NULL';
+    if (Array.isArray(value)) return pgArrayLiteral(value);
+    const text = value instanceof Date ? value.toISOString() : String(value);
+    return `"${text.replace(/[\\"]/g, '\\$&')}"`;
+  };
+  return `{${values.map(item).join(',')}}`;
+}
+
+/**
+ * Prisma's conversion (`convertArgs`, copied unchanged) sends a JS array bound as ONE raw-SQL parameter
+ * (`unnest(${ids}::text[])`, `= ANY(${ids})`) as `String(list)`, i.e. `a,b`, and Postgres answers
+ * `22P02 malformed array literal`; local `adapter-pg` accepts arrays, so it only failed once deployed. Here
+ * every such array becomes a Postgres array literal first, so raw SQL behaves as it does locally. A `json`
+ * parameter that is an array stays JSON.
+ */
+export function toParams(query: Pick<SqlQuery, 'args' | 'argTypes'>): unknown[] {
+  const args = query.args.map((arg, index) =>
+    Array.isArray(arg) && query.argTypes[index]?.scalarType !== 'json' ? pgArrayLiteral(arg) : arg
+  );
+  return convertArgs(args, query.argTypes);
+}
+
 async function runQuery(executor: Statements, query: SqlQuery): Promise<SqlResultSet> {
   try {
-    const args = convertArgs(query.args, query.argTypes);
+    const args = toParams(query);
     const result = await executor.query(query.sql, ...args);
     const rows = await result.rows.collect();
     return {
@@ -131,7 +156,7 @@ async function runQuery(executor: Statements, query: SqlQuery): Promise<SqlResul
 
 async function runExec(executor: Statements, query: SqlQuery): Promise<number> {
   try {
-    return await executor.exec(query.sql, ...convertArgs(query.args, query.argTypes));
+    return await executor.exec(query.sql, ...toParams(query));
   } catch (error) {
     throw adapterError(error);
   }

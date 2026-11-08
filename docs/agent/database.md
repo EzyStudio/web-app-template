@@ -64,6 +64,20 @@ before. Don't import `db-socket.ts`, open a session, or write your own connectio
 - **Don't use `String[]` or other Prisma scalar lists.** Prisma's Prisma Postgres driver mishandles
   them (a write fails with `malformed array literal`, a read crashes, raw SQL returns `{a,b}` as text),
   with HTTPS too. Use a related table, or `Json` for an opaque list.
+- **Don't fetch ids, then fetch rows by those ids.** A listing that reads a page of ids and then the rows
+  for them (`unnest(${ids}::text[])`, `= ANY(${ids})`, `findMany({where: {id: {in: ids}}})`) is two round
+  trips and ships a list back to the database for nothing. Read it in ONE statement: the page's ids in a
+  `WITH` / subquery, joined to the rows (`WITH page AS (SELECT id … ORDER BY … LIMIT …) SELECT p.* FROM page
+  JOIN products p USING (id) ORDER BY …`), or one `findMany` with the filters, order and `take`. Pass a list
+  only when it comes from the request itself (the rows an admin ticked for a bulk action) or when no join
+  can exist (names for one page of audit rows whose users may be gone), and cap it.
+- **A JS array bound as one raw-SQL parameter works since template 0.10.21**: the platform
+  (`src/platform/db-socket.ts`, `toParams`) sends it as a Postgres array literal. Before 0.10.21 the live
+  driver sent it as the text `a,b` and Postgres refused it with `22P02 malformed array literal`, only once
+  deployed (local `adapter-pg` accepts arrays, so every local test passed). On a site below 0.10.21 that can't
+  upgrade yet, bind one array literal as text and cast it:
+  `'{' + ids.map(v => v == null ? 'NULL' : '"' + String(v).replace(/[\\"]/g, '\\$&') + '"').join(',') + '}'`
+  then `${literal}::text[]`, or expand a short list with `IN (${Prisma.join(ids)})`.
 - **Leave the managed files alone**: `src/platform/db-socket*.ts` come from the template. Bumping
   `@prisma/adapter-ppg` means copying its conversion again: `tests/db-socket.test.ts` fails until
   someone does. Don't change the Prisma version without a template upgrade.

@@ -73,6 +73,10 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
      Keep this site's file; copy the comment if it still has the template's.
    - `README.md`: if this site still has the template's, copy the template's "Setting up, step by step", "Staying up to
      date" and "Troubleshooting" parts. A site that rewrote it: leave it.
+   **Coming from below 0.10.21** (lists in raw SQL). The upgrade brings the fix itself (`src/platform/db-socket.ts`) and its tests
+   (`tests/db-socket.test.ts`, with the tests in step 3). In this site's own code: a route that reads a page of ids and then the
+   rows for them becomes ONE statement (`database.md`, "Don't fetch ids, then fetch rows by those ids"); a helper of its own that
+   builds an array literal (`pgArray`) still works and can stay.
 9. Check it:
    ```bash
    npm install

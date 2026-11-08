@@ -4,6 +4,14 @@ Template releases. `npm run platform -- check` says when a newer one is out;
 `npm run platform -- upgrade` applies it (see `scripts/platform.mjs`).
 Managed by the template: replaced on upgrade.
 
+## 0.10.21
+
+**Required upgrade.** A list in raw SQL works on the live database:
+- `src/platform/db-socket.ts`: a JS array bound as one raw-SQL parameter (`unnest(${ids}::text[])`, `= ANY(${ids})`) is sent as a
+  Postgres array literal. Before, Prisma's conversion sent it as `a,b` and the live database refused it (`22P02 malformed array literal`),
+  while local Postgres accepted it, so it passed every local test and failed only once deployed. `tests/db-socket.test.ts` covers it.
+- `docs/agent/database.md`: don't read a page of ids and then the rows for them; read them in one statement.
+
 ## 0.10.20
 
 **Required upgrade.** Clearer steps on a developer's own computer:
