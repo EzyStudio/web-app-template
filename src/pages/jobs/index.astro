@@ -1,0 +1,106 @@
+---
+/**
+ * The job board, a list page: a static shell (built once, served as a file, what search engines
+ * read) with its rows from `GET /site-api/jobs` as JSON. A search, a filter or "Older jobs" fetches
+ * only the data (`src/lib/list-page.ts`). Every job has its own server-rendered page, listed in
+ * /sitemap.xml, so search engines find them all.
+ */
+import Base from '../../layouts/Base.astro';
+import {JOB_TYPES} from '../../lib/types';
+import {staticContext} from '../../server/page';
+
+export const prerender = true;
+
+const {site, viewer} = await staticContext(Astro.request);
+const label = (t: string) => t.replace('-', ' ').replace(/^\w/, c => c.toUpperCase());
+---
+
+<Base
+  site={site}
+  viewer={viewer}
+  isStatic
+  preloadData="/site-api/jobs"
+  title="Jobs"
+  description={`Open roles at ${site?.name ?? 'our site'}.`}
+>
+  <main id="main" tabindex="-1" class="wrap section" data-jobs>
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">Job board</p>
+        <h1>Open roles</h1>
+      </div>
+      <a class="button" href="/dashboard/jobs" data-ability="manageJobs" hidden>Post a job</a>
+    </div>
+
+    <form class="filters" action="/jobs/" method="get" role="search" data-list-filters>
+      <input type="search" name="search" placeholder="Search job titles" maxlength="80" aria-label="Search job titles" />
+      <select name="type" aria-label="Job type">
+        <option value="">Any type</option>
+        {JOB_TYPES.map(t => <option value={t}>{label(t)}</option>)}
+      </select>
+      <label class="check"><input type="checkbox" name="remote" value="1" /> Remote</label>
+      <button class="button ghost" type="submit">Filter</button>
+      <a class="small" href="/jobs/" data-list-clear hidden>Clear</a>
+    </form>
+
+    <div class="job-list list-skeleton" data-list-skeleton aria-hidden="true">
+      {Array.from({length: 6}, () => <div class="list-skeleton-row"><span /><span /></div>)}
+    </div>
+    <noscript><p class="notice">Turn on JavaScript to see the open roles.</p></noscript>
+
+    <ul class="job-list" data-list-items></ul>
+    <p class="lede" data-list-empty role="status" hidden>No open roles right now. Check back soon.</p>
+    <p class="lede" data-list-no-match role="status" hidden>No jobs match these filters.</p>
+    <div class="notice" data-list-error role="alert" hidden>
+      The job board is not available right now.
+      <button class="button link small-button" type="button" data-list-retry>Try again</button>
+    </div>
+    <nav class="pager"><button class="button link" type="button" data-list-more hidden>Older jobs →</button></nav>
+
+    <template data-list-item>
+      <li>
+        <a class="job-row" data-href>
+          <div>
+            <h2 class="job-title" data-title></h2>
+            <p class="muted" data-where></p>
+          </div>
+          <div class="job-tags">
+            <span class="chip" data-type></span>
+            <span class="chip chip-tag" data-remote hidden>Remote</span>
+            <span class="muted small" data-date></span>
+          </div>
+        </a>
+      </li>
+    </template>
+  </main>
+</Base>
+
+<script>
+  import {formatDate} from '../../lib/format';
+  import {bindListPage} from '../../lib/list-page';
+  import type {Job, JobsPage} from '../../lib/types';
+
+  const label = (t: string) => t.replace('-', ' ').replace(/^\w/, c => c.toUpperCase());
+
+  document.addEventListener('astro:page-load', () => {
+    const root = document.querySelector<HTMLElement>('[data-jobs]');
+    if (!root) return;
+    bindListPage<JobsPage, Job>({
+      root,
+      endpoint: '/site-api/jobs',
+      items: page => page.jobs,
+      next: page => page.nextBefore,
+      render(row, job) {
+        const set = (name: string, text: string) => {
+          row.querySelector(`[data-${name}]`)!.textContent = text;
+        };
+        row.querySelector<HTMLAnchorElement>('[data-href]')!.href = `/jobs/${encodeURIComponent(job.slug)}/`;
+        set('title', job.title);
+        set('where', `${job.company} · ${job.location}`);
+        set('type', label(job.type));
+        set('date', formatDate(job.createdAt));
+        row.querySelector<HTMLElement>('[data-remote]')!.hidden = !job.remote;
+      },
+    });
+  });
+</script>
