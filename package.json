@@ -1,6 +1,6 @@
 {
   "name": "site-app",
-  "version": "0.10.18",
+  "version": "0.10.20",
   "private": true,
   "type": "module",
   "engines": {

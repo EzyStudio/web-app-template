@@ -4,6 +4,36 @@ Template releases. `npm run platform -- check` says when a newer one is out;
 `npm run platform -- upgrade` applies it (see `scripts/platform.mjs`).
 Managed by the template: replaced on upgrade.
 
+## 0.10.20
+
+**Required upgrade.** Clearer steps on a developer's own computer:
+- `scripts/platform.mjs`: `check` on a `template.json` left on another version than the rest says to finish the merge, or to put
+  back only `template.json` from the release the other files are on (`git checkout v<that version> -- template.json`).
+- `AGENTS.md`, `README.md`, `docs/agent/upgrade.md`: the merge command names no version
+  (`git merge "$(git describe --tags --abbrev=0 upstream/main)"` takes the newest release); one command per line, so they also run in
+  Windows PowerShell; a `package-lock.json` conflict: `git checkout --theirs package-lock.json`, then `npm install`; the template's own
+  files keep no changes of yours (describe your project in `README.md`).
+- `AGENTS.md`: a placeholder still in double braces is not filled in (a copy outside the editor): never open it as a URL or path;
+  read `docs/agent/` in the project instead. `npm run platform -- docs` names its `--site`.
+- `docs/agent/roles-and-permissions.md`, `AGENTS.md`, `src/server/permissions.ts`: a new permission also gets its line in
+  `tests/permissions.test.ts`, which lists every codename and ability on purpose.
+- `docs/agent/database.md`: `npm run db:seed` loads the sample data on your own computer (run it twice: both must pass).
+- `README.md`: what `npm run setup` does and doesn't, and why a repeat sign-up prints no new code.
+- `tests/integration/account-security.test.ts`: the two-step sign-in test no longer fails when it runs across a 30-second code window.
+
+Steps for an existing site: `docs/agent/upgrade.md` step 8.
+
+## 0.10.19
+
+Required upgrade. The template's own files are checked:
+- `scripts/managed-files.json`: this release's list of the template's own files (`src/platform/`, `docs/agent/`, `AGENTS.md`,
+  `CLAUDE.md`, `GEMINI.md`, `template.json`, `CHANGELOG.md`, `scripts/platform.mjs`) with their sha256. Never edit it.
+- `npm run platform -- check` compares them byte for byte and says how to put one back (`git checkout v<version> -- <file>`); on a
+  clone of the template's repository it reads the `upstream` remote's release tags; a store listing (with `store-check.mjs`) is also
+  checked for its sample data, `prisma/seed.sql`, which a web app listing must have. Exit 1 when something is to fix.
+- `.gitattributes`: every text file is LF, also on a Windows checkout.
+- `AGENTS.md`, `README.md` and `docs/agent/upgrade.md`: the template's own files listed, releases by `git merge` only (no download).
+
 ## 0.10.18
 
 Required upgrade. Ready for building on your own computer:

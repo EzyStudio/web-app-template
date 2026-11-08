@@ -14,7 +14,7 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
    npm run platform -- upgrade --from /tmp/site-template
    ```
    If its `template.json` is still below the required version, or the file never arrives, treat it as "If it can't finish" below. Never ask the owner to download or find anything: they have nowhere to get it. Plain `npm run platform -- upgrade` fails with `no template folder`: always pass `--from`.
-   A developer on their own machine with an `upstream` remote (the template repository it was cloned from): merge the release tag instead (`AGENTS.md` "On a developer's own computer"), then continue at step 2. Otherwise: download the newest template (or developer kit) again, unzip it OUTSIDE the project, and use `--from <that folder>` the same way (`npm run platform -- check --from <that folder>` first says whether it is newer). Files that came with the download and not the template (its `.gitignore` names them) are never copied in.
+   A developer on their own machine (a clone of the template's repository, its `upstream` remote): merge the newest release tag instead (`AGENTS.md` "On a developer's own computer"), then continue at step 2. No `upstream` remote: add the template's repository as `upstream` (`DEVELOPERS.md` names it) and merge; there is no copy to download. `npm run platform -- check` says whether a newer release is out.
 2. It replaces the managed files, adds new ones, and lists what it left as it was. Go through that list. Keep this site's own changes.
    **Check its `added` list first.** A page or content file there is one this site deleted or never had. Delete anything added under `src/pages/`, `src/content/`, `src/assets/` or `public/`, unless a step below names it or the build needs it. A visitor must never see a page the owner didn't ask for.
 3. **Every upgrade, whatever version this site is on**, because `package.json` and `prisma/schema.prisma` are usually on that list. A site on 0.10.11 can still be missing some of it. Skip what's already there:
@@ -26,7 +26,7 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
      - in BOTH `generator` blocks: `previewFeatures = ["relationJoins"]`
      - the new `model IdempotencyKey`, copied whole from `/tmp/site-template/prisma/schema.prisma`
    - Packages with known security problems (0.10.17). `package.json` → `devDependencies`: `"vitest": "4.1.12"`. Then, after `npm install`
-     in step 7, run `npm audit fix` (never `--force`) and `npm audit`: it must report no high or critical problem. If one is left, it comes
+     in step 9, run `npm audit fix` (never `--force`) and `npm audit`: it must report no high or critical problem. If one is left, it comes
      from a package this site added: update that package to a version without it, or tell the owner which package it is.
    - The new migration folders arrive with the upgrade. Never edit them.
    - Checkout keys, so a double click or a retry can't start a second checkout. Copy these five from `/tmp/site-template/`; if this site
@@ -57,7 +57,23 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
    - `package.json` → `scripts`: add the template's `check`, `setup`, `db:migrate`, `db:seed` and `dev-admin` lines where this site has none of that name.
    - `docker-compose.yml`, `.nvmrc` and `.editorconfig` arrive as new files (the local database, the Node version, editor settings): keep them.
    - `tests/local-dev.test.ts` arrives with the tests in step 3.
-7. Check it:
+7. **Coming from below 0.10.19** (the template's own files are checked). The upgrade adds `scripts/managed-files.json` (this release's
+   list of the template's own files) and `.gitattributes` (LF line endings, also on Windows): keep both. Then:
+   - `AGENTS.md`: the upgrade leaves it; copy the template's (`cp /tmp/site-template/AGENTS.md AGENTS.md`). If this site added rules
+     of its own to it, add those lines back at the end. An app built for the store keeps it exactly as the template has it.
+   - Run `npm run platform -- check --from /tmp/site-template`. It lists any of the template's own files that differ from this release
+     (`src/platform/`, `docs/agent/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `template.json`, `CHANGELOG.md`, `scripts/`): copy each
+     one from `/tmp/site-template/` (keep this site's own lines of `AGENTS.md` at its end, as above). "Windows line endings":
+     `git add --renormalize .`, then check again.
+8. **Coming from below 0.10.20** (clearer steps on a developer's own computer). The upgrade leaves these; skip what's already there:
+   - `AGENTS.md`: copy the template's (`cp /tmp/site-template/AGENTS.md AGENTS.md`). If this site added rules of its own to it, add
+     those lines back at the end. An app built for the store keeps it exactly as the template has it. `CLAUDE.md` and `GEMINI.md` are unchanged.
+   - `tests/integration/account-security.test.ts` arrives with the tests in step 3.
+   - `src/server/permissions.ts`: only its top comment changed (a new permission also gets its line in `tests/permissions.test.ts`).
+     Keep this site's file; copy the comment if it still has the template's.
+   - `README.md`: if this site still has the template's, copy the template's "Setting up, step by step", "Staying up to
+     date" and "Troubleshooting" parts. A site that rewrote it: leave it.
+9. Check it:
    ```bash
    npm install
    npx prisma generate
@@ -66,8 +82,8 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
    npm run build
    ```
    `tests/upgrade.test.ts` fails with what's missing if a schema line was skipped.
-8. In the Preview: open the admin with the shield in the bar, sign up as a normal user with the emailed code and check they get no admin, if this site has `/jobs/` and came from below 0.10.13, check it shows skeleton rows and then its jobs, and check the pages this site changed.
-9. Commit, do the owner's task, and at the end tell them in plain words what changed, and that it goes live when they publish. Only say what changed for this site. If it has `/jobs/` and came from below 0.10.13: the jobs list now shows loading rows, and filters without reloading the page. If it came from below 0.10.15: new sign-ups confirm their email with a 6-digit code, and anyone whose email was never confirmed may need to choose a new password. If it was below 0.10.11, also:
+10. In the Preview: open the admin with the shield in the bar, sign up as a normal user with the emailed code and check they get no admin, if this site has `/jobs/` and came from below 0.10.13, check it shows skeleton rows and then its jobs, and check the pages this site changed.
+11. Commit, do the owner's task, and at the end tell them in plain words what changed, and that it goes live when they publish. Only say what changed for this site. If it has `/jobs/` and came from below 0.10.13: the jobs list now shows loading rows, and filters without reloading the page. If it came from below 0.10.15: new sign-ups confirm their email with a 6-digit code, and anyone whose email was never confirmed may need to choose a new password. If it was below 0.10.11, also:
    - Password sign-up and sign-in work now, and pages load faster.
    - After publishing, they open the admin once with **View as admin** in the dashboard. It's the only way in from now on.
    - Whoever was an owner in the site before is now a normal user, and admins stay. Team members get in by signing up on the app; the owner gives them a role under Users.

@@ -14,11 +14,18 @@ rebuild what is here.
 Placeholders written as double braces around an UPPER_CASE name are filled in by the platform.
 The filled-in copy, which wins over this file when they differ, is what the editor
 gives you (`/etc/claude-code/CLAUDE.md`, `{{DOCS_DIR}}/`); outside the editor,
-`npm run platform -- docs` saves it to `.platform/docs/` (start with `core.md`).
+`npm run platform -- docs --site <a hosted site's address>` saves it to `.platform/docs/` (start with `core.md`).
+**A placeholder still in double braces is not filled in** (on a developer's own computer, or any copy
+outside the editor): never fetch, open or paste it as a URL, path or value, and never fill it in (this file
+is compared byte for byte). Read `docs/agent/<topic>.md` in this folder instead of `{{DOCS_DIR}}` or
+`{{DOCS_URL}}`; for any other one, `DEVELOPERS.md` or `STORE-LISTING.md`, if present, says what it is on
+that computer; otherwise it isn't available there: do the task without it and say so in one line.
 
-## First: is this site on the required template version? (0.10.18)
-Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.18, this site
-has problems these rules can't fix for it:** below 0.10.18 its sample data doesn't stop on a database in use, and it can't be
+## First: is this site on the required template version? (0.10.20)
+Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.20, this site
+has problems these rules can't fix for it:** below 0.10.20 `npm run platform -- check` puts a half-done merge back
+with the wrong file, and on a developer's computer its AI can open a placeholder as a link; below 0.10.19 it can't tell when the template's own files
+were changed, and a Windows copy can change their line endings; below 0.10.18 its sample data doesn't stop on a database in use, and it can't be
 signed in to on a developer's own computer; below 0.10.17 it ships packages with known security problems (`undici`);
 below 0.10.16 someone could take over an account by signing up with its address first, and
 limits on sign-in can be got around. Below 0.10.11, someone could also take
@@ -33,11 +40,15 @@ these problems by hand in your own code, and never publish a half-done upgrade.
 
 **On a developer's own computer.** If `DEVELOPERS.md` exists at the top of this project, read it first: it says how this
 copy is set up and kept up to date. If `git remote -v` lists `upstream` (the template repository it was cloned from), an
-upgrade is a merge, not `upgrade.md` step 1: commit everything, `git fetch upstream --tags`, `git merge v<version>` (the
-newest `v*` tag, at least the required version), solve conflicts (`package-lock.json`: take either side, then `npm install`;
+upgrade is a merge, not `upgrade.md` step 1: commit everything, `git fetch upstream --tags`, then
+`git merge "$(git describe --tags --abbrev=0 upstream/main)"` (the newest release, at least the required version), solve conflicts (`package-lock.json`: `git checkout --theirs package-lock.json`, then `npm install`;
 the template's managed files and `AGENTS.md`: take the template's), then follow `upgrade.md` from step 2 and check it. A
-copy with no shared history merges once with `--allow-unrelated-histories`. No `upstream` and no editor: `upgrade.md` step 1
-with `--from` a newer template the developer downloaded.
+copy with no shared history merges once with `--allow-unrelated-histories`. No `upstream` and no editor: add the template's
+repository as `upstream` (`DEVELOPERS.md` names it) and merge; there is no copy to download. Never edit the template's own
+files: `src/platform/`, `docs/agent/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `template.json`, `CHANGELOG.md`, `scripts/platform.mjs`,
+`scripts/managed-files.json`. They are compared byte for byte with the release `template.json` names, and a store
+submission that changed or deleted one is refused; put one back with `git checkout v<the version in template.json> -- <file>`.
+`npm run platform -- check` compares them. Before saying a store listing is ready: `DEVELOPERS.md` "For your AI".
 
 ## Every task: the current rules first, then the owner's words
 These rules are kept up to date by the platform and can be newer than this site's code, which stays
@@ -103,7 +114,8 @@ browser ──► /dashboard (React SPA) ──── fetch ─────► H
 - **`src/platform/` is the MANAGED core** (config, platform client, guards, the whole auth
   system in `src/platform/auth/`, browser helpers, sanitizer). Never edit it:
   `npm run platform -- upgrade` replaces it (that is how security fixes reach this site).
-  `docs/agent/` is managed the same way. Your code: `src/server/`, `src/pages/`, `src/portal/`,
+  `docs/agent/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `template.json`, `CHANGELOG.md`, `scripts/platform.mjs` and
+  `scripts/managed-files.json` are managed the same way (`npm run platform -- check` compares them). Your code: `src/server/`, `src/pages/`, `src/portal/`,
   `src/content/`, `src/lib/`, `src/styles/`, `prisma/`.
 - **One Worker, one build, one deploy.** No second Worker, no KV/R2/D1/queues/Durable Objects.
   Later and scheduled work is the platform's background jobs (`background-jobs.md`): handlers in
@@ -264,7 +276,7 @@ whole-table loops, nothing big in module memory (`performance.md`).
   `NAV_GROUPS` item with its `icon`; gated: an `ability` on its
   catalogue entry (`/me` and `Abilities` follow).
 - **An admin-only feature**: ONE entry in `CATALOGUE` (`src/server/permissions.ts`: codename,
-  title, group, `ability`, default `roles`; no migration), routes behind
+  title, group, `ability`, default `roles`; no migration) and its line in `tests/permissions.test.ts`, routes behind
   `requirePermission(PERMISSIONS.X)` (own records: `can`), nav item `ability: '<ability>'`
   (`roles-and-permissions.md`). Never gate on a role slug.
 - **A list + detail** (data in the Site Database, like `/jobs`): data route first; the list is a list
@@ -365,7 +377,7 @@ whole-table loops, nothing big in module memory (`performance.md`).
   others can read, or an outside service the person didn't ask for. Show a name instead; if a
   person must recognise an address, mask it (`m•••@gmail.com`). Never copy emails into your own
   tables (join on `users.id`).
-- Edit `src/platform/**` or `docs/agent/**` (managed), weaken a guard, `sameOrigin`, `csrf`,
+- Edit `src/platform/**`, `docs/agent/**` or another managed file (above), weaken a guard, `sameOrigin`, `csrf`,
   the rate limits, the cookie flags or the CSP, or write auth, token, cookie or password code.
 - Put a secret in code, a file, a log, the browser or git; read `env` outside `config`; ask for
   a secret's value; call another service with a key from anywhere but `config.ownerSecret`, or

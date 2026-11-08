@@ -53,15 +53,16 @@ describe.skipIf(!DATABASE_URL)('account security (integration, real Postgres)', 
       const challenge = login.json.challenge as string;
 
       expect((await fresh.post('/site-api/auth/login/two-factor', {challenge, code: '123456'})).status).toBe(422);
-      // The code the setup used is spent; the next step's code works.
-      const ok = await fresh.post('/site-api/auth/login/two-factor', {challenge, code: await code(secret, 1)});
+      // The code the setup used is spent; the next step's code works. Worked out ONCE: the replay
+      // below must send these same digits, never a code for whatever step it is by then (a
+      // 30-second boundary in between would make that a new, valid code).
+      const next = await code(secret, 1);
+      const ok = await fresh.post('/site-api/auth/login/two-factor', {challenge, code: next});
       expect(ok.status).toBe(200);
       expect((await fresh.get('/site-api/auth/me')).json.user).toMatchObject({email: 'bea@example.test'});
       // The same code never works twice.
       const replay = await new Browser(app).post('/site-api/auth/login', {email: 'bea@example.test', password: PASSWORD});
-      expect(
-        (await new Browser(app).post('/site-api/auth/login/two-factor', {challenge: replay.json.challenge, code: await code(secret, 1)})).status
-      ).toBe(422);
+      expect((await new Browser(app).post('/site-api/auth/login/two-factor', {challenge: replay.json.challenge, code: next})).status).toBe(422);
     });
 
     it('a recovery code works once; a forged or stale challenge never', async () => {

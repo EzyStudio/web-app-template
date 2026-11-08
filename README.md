@@ -39,7 +39,8 @@ One project, one build, one deploy.
 With [Node.js 22.12+](#requirements) and Docker running:
 
 ```bash
-git clone <the template repository's address> my-site && cd my-site
+git clone <the template repository's address> my-site
+cd my-site
 npm install
 docker compose up -d --wait db      # a local Postgres (docker-compose.yml)
 npm run setup                       # .env with a new JWT_SECRET, database check, tables
@@ -64,7 +65,7 @@ No Docker? Any Postgres 15 or later on your computer works: put its address in `
 
 ## Setting up, step by step
 
-`npm run setup` does steps 3 to 5 for you; this is what it does, and how to do it by hand.
+`npm run setup` does [Settings](#settings-env) and [The database](#the-database) for you (not the sample data); this is what it does, and how to do it by hand.
 
 ### Get the code
 
@@ -81,7 +82,7 @@ git push -u origin main
 
 Don't use a "Use this template" button or copy the files: that makes a copy with no shared
 history, and `git merge` can no longer tell your changes from the template's. Already did? See
-[Started from a zip or a copy](#started-from-a-zip-or-a-copy).
+[Started from a copy](#started-from-a-copy).
 
 ### Install
 
@@ -185,7 +186,7 @@ locally.
 | `npm run studio` | Prisma Studio on http://localhost:5555, to browse the database |
 | `npm run preview` | serves the last `npm run build` |
 | `npm run platform -- jobs` | checks `background.json` and its handlers |
-| `npm run platform -- check` / `upgrade` | template updates from a downloaded copy ([Staying up to date](#without-git-access-to-the-template)) |
+| `npm run platform -- check` | the template's own files untouched, and is a newer release out ([Staying up to date](#staying-up-to-date)) |
 | `npm run platform -- docs --site <a hosted site's address>` | the platform's latest rules for AI agents, into `.platform/docs/` |
 
 ## Project structure
@@ -215,10 +216,13 @@ src/
 - **Your code**: `src/server/` (routes), `src/pages/` (pages), `src/portal/` (dashboard screens),
   `src/content/` (words), `src/lib/`, `src/styles/`, `prisma/`. `AGENTS.md` and `docs/agent/` have
   the rules for each: read them, or have your AI read them, before every change.
-- **Never edit** `src/platform/`, `docs/agent/`, `scripts/platform.mjs`, `CHANGELOG.md` or
-  `template.json`. They are the template's: releases replace them (that is how security fixes
-  arrive), and a changed `src/platform/` is refused when the site is checked. Extend them from your
-  own code. Keep `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` as they are too.
+- **Never edit the template's own files**: `src/platform/`, `docs/agent/`, `AGENTS.md`, `CLAUDE.md`,
+  `GEMINI.md`, `template.json`, `CHANGELOG.md`, `scripts/platform.mjs` and `scripts/managed-files.json`.
+  Releases replace them (that is how security fixes arrive). Each is compared byte for byte with the
+  release `template.json` names: `npm run platform -- check` lists any that changed, and a store
+  listing that changed or deleted one is refused. Put one back with
+  `git checkout v<your version> -- <file>`. Extend them from your own code. `.gitattributes` keeps
+  every text file LF, so a Windows checkout doesn't change them.
 - **Changing the database**: a new migration for every change, never an edit to an applied one.
   ```bash
   npx prisma migrate dev --create-only --name add_bookings   # 1. write it
@@ -230,8 +234,11 @@ src/
 - **Sample data, `prisma/seed.sql`**: made-up rows, never for a live database. Wrap it in
   `BEGIN;` … `COMMIT;`; start with a block that stops with `RAISE EXCEPTION` when real data is
   there; make it safe to run twice (`ON CONFLICT DO NOTHING` or `WHERE NOT EXISTS`); `@example.com`
-  addresses, no users or passwords. The shipped one is the example to copy.
-- **Before you push**: `npm run check`.
+  addresses, no users or passwords. The shipped one is the example to copy. A web app listed in a
+  store must have one with sample data for ITS tables (at least one `INSERT`): the store loads it
+  into its review copy and its preview, and into a customer's staging database only when they ask.
+- **Before you push**: `npm run check` and `npm run platform -- check`. If this project has a
+  `DEVELOPERS.md`, follow its "For your AI" steps (and its ready-to-submit checklist) too.
 
 ## Tests
 
@@ -255,8 +262,8 @@ Template releases are tagged `vX.Y.Z` in the template repository you cloned from
 
 ```bash
 git fetch upstream --tags
-git tag -l 'v*' --sort=-v:refname | head -3   # the newest releases
-git merge v0.10.19                            # the one you want
+git describe --tags --abbrev=0 upstream/main   # the newest release
+git merge "$(git describe --tags --abbrev=0 upstream/main)"
 npm install
 npm run db:migrate
 npm run check
@@ -265,16 +272,16 @@ npm run check
 Then follow the new `docs/agent/upgrade.md` for anything that release asks of files you changed.
 
 **Conflicts** (git lists them; search for `<<<<<<<`):
-- `package-lock.json`: take either side (`git checkout --theirs package-lock.json`), run
-  `npm install` (it rebuilds the lock for the merged `package.json`), then commit.
-- The template's own files (`src/platform/`, `docs/agent/`, `scripts/platform.mjs`,
+- `package-lock.json`: `git checkout --theirs package-lock.json`, then `npm install` (it rebuilds the
+  lock for the merged `package.json`), then commit.
+- The template's own files (`src/platform/`, `docs/agent/`, `scripts/`, `template.json`,
   `CHANGELOG.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`): take the template's
-  (`git checkout --theirs <file>`). Rules of your own in `AGENTS.md`: add them back at the end.
+  (`git checkout --theirs <file>`). Never keep changes of your own in them: describe your project in `README.md` instead.
 - Your files (pages, `src/content/site.ts`, styles): keep your words and look, and bring over what
   the template changed.
 - `git merge --abort` puts everything back as it was.
 
-### Started from a zip or a copy
+### Started from a copy
 
 No shared history with the template: connect it once, then merge releases as above.
 
@@ -282,38 +289,25 @@ No shared history with the template: connect it once, then merge releases as abo
 git remote add upstream <the template repository's address>
 git fetch upstream --tags
 git merge v<the version in your template.json> --allow-unrelated-histories   # once
-git merge v0.10.19                                                         # then any newer release
+git merge "$(git describe --tags --abbrev=0 upstream/main)"                # then the newest release
 ```
 
 The first merge lists every file that differs from that release (usually only the ones you
-changed): keep your side of each (`git checkout --ours <file>`), then commit.
-
-### Without git access to the template
-
-With a downloaded zip only: download the newer template, unzip it OUTSIDE this project, commit
-your work, then:
-
-```bash
-npm run platform -- check --from ../astro-app-new      # the folder you unzipped
-npm run platform -- upgrade --from ../astro-app-new    # replaces the managed files, adds new ones
-```
-
-`upgrade` lists the files you changed for you to compare; add `--base <an unzipped copy of the
-version you are on>` for a real 3-way merge. Then `docs/agent/upgrade.md`, `npm install`,
-`npm run check`. Files that came with the download and not the template (its `.gitignore` names
-them) are never copied in.
+changed): keep your side of your own files (`git checkout --ours <file>`) and the template's side
+of its own files (`git checkout --theirs <file>`), then commit.
 
 ## Troubleshooting
 
 | What you see | Why | Fix |
 | --- | --- | --- |
-| `npm install` warns `EBADENGINE`, or `npm run setup` says Node.js is too old | Node.js below 22.12 | `nvm install 22 && nvm use` (or install 22.12+), then `npm install` again |
+| `npm install` warns `EBADENGINE`, or `npm run setup` says Node.js is too old | Node.js below 22.12 | `nvm install 22`, then `nvm use 22` (or install 22.12+), then `npm install` again |
 | `docker compose up` says `Bind for 0.0.0.0:5432 failed: port is already allocated` | another Postgres already uses port 5432 | put `DB_PORT=5433` in `.env` (and `:5433` in `DATABASE_URL` if it is already set), then `docker compose up -d --wait db` and `npm run setup` |
 | `npm run setup` says `no database answers at localhost:5432` (or `ECONNREFUSED`) | the database isn't running, or Docker isn't | start Docker, then `docker compose up -d --wait db`, then `npm run setup` |
 | sign-up answers 503 `auth_not_configured`: "Sign-in is not set up on this site yet" | `JWT_SECRET` is missing or shorter than 32 characters | `npm run setup` (or `openssl rand -base64 48` into `.env`), then restart `npm run dev` |
 | pages or sign-in answer 503 `site_database_disabled` | `DATABASE_URL` is empty | `npm run setup`, then restart `npm run dev` |
 | sign-up answers 500, and the dev server shows `relation "login_attempts" does not exist` or `The table public.permissions does not exist` | the tables aren't created (migrations pending) | `npm run db:migrate` |
 | no code appears after signing up | `SITE_KEY` is set (codes are then emailed by the platform), or the dev server runs in the background | empty `SITE_KEY` in `.env` and restart; or read `npx astro dev logs` |
+| no new code when you sign up again with the same address | account emails to one address are limited, so a repeat within a few minutes sends none | use the code printed the first time (it stays valid for a while), wait a few minutes, or sign up with another address |
 | `dev-admin` says `no account for …` | that address hasn't finished signing up in this database | sign up and type the code first |
 | `dev-admin` says `refused (local development only)` | `SITE_KEY`, `SITE_PREVIEW` or `NODE_ENV=production` is set, or `DATABASE_URL` isn't on this computer | empty them in `.env` (it only ever changes a local database) |
 | `npm run dev` says port 4321 is in use, or opens another port | another dev server is running | use the address it prints, or stop the other one (`npx astro dev stop`) |

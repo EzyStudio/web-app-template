@@ -5,7 +5,9 @@
  * plus `tar` and `git` on the PATH. No dependencies.
  *
  *   npm run platform -- docs [--site URL]   live platform docs → .platform/docs/ (git-ignored)
- *   npm run platform -- check [--from DIR]  is a newer template release out?
+ *   npm run platform -- check [--from DIR]  the template's own files untouched (scripts/managed-files.json),
+ *                                            a store listing's sample data, and is a newer release out?
+ *                                            Exit 1: something to fix; 10: a newer release; 0: all good.
  *   npm run platform -- upgrade [--to vX.Y.Z] [--from DIR] [--base DIR] [--dry-run]
  *   npm run platform -- jobs                 check background.json and its handlers (no network)
  *   npm run platform -- prices               the payments catalogue (sandbox in the editor)
@@ -35,14 +37,14 @@
  *     `--base DIR` gives a copy of the OLD version; without it, files you
  *     changed are left as they are and listed for you to compare.
  *   - `owner/name` — a GitHub repository with `vX.Y.Z` tags (later).
- *   OUTSIDE a platform checkout (a copy you downloaded and build on your own computer), there is
- *   no such folder: download the newer template, unzip it OUTSIDE this project and pass it:
- *   `npm run platform -- check --from <unzipped folder>`, then `upgrade --from <unzipped folder>`.
- *   Files that folder's `.gitignore` names one by one (files that came with the download, not the
- *   template) are never copied in.
+ *   In the editor, the platform provides the newest template as a folder: `upgrade --from <it>`
+ *   (docs/agent/upgrade.md). A clone of the template's repository on a developer's own computer
+ *   takes releases with git instead (`git fetch upstream --tags`, then `git merge v<newest>`); `check`
+ *   reads the `upstream` remote's tags. Files that a `--from` folder's `.gitignore` names one by
+ *   one (files that came with it, not the template) are never copied in.
  *
  * UPGRADE, file by file, from the version in `template.json` to the target:
- *   - MANAGED paths (`src/platform/**`, `docs/agent/**`, this script,
+ *   - MANAGED paths (`src/platform/**`, `docs/agent/**`, this script, its `managed-files.json`,
  *     `CHANGELOG.md`) are the template's own: replaced wholesale. Do not edit them; extend them from
  *     your own code instead.
  *   - Everything else is a 3-way merge (`git merge-file`): base = the old
@@ -54,7 +56,7 @@
  * the listed conflicts, run `npm install`, `npm run build`.
  */
 import {execFileSync} from 'node:child_process';
-import {randomBytes} from 'node:crypto';
+import {createHash, randomBytes} from 'node:crypto';
 import {existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {createRequire} from 'node:module';
@@ -63,7 +65,12 @@ import {fileURLToPath} from 'node:url';
 
 const ROOT = process.cwd();
 const MANIFEST = join(ROOT, 'template.json');
-const MANAGED = [/^src\/platform\//, /^docs\/agent\//, /^scripts\/platform\.mjs$/, /^CHANGELOG\.md$/];
+const MANAGED = [/^src\/platform\//, /^docs\/agent\//, /^scripts\/platform\.mjs$/, /^scripts\/managed-files\.json$/, /^CHANGELOG\.md$/];
+/** This release's managed files and their sha256 (`check` compares them; never edit it). */
+const MANAGED_LIST_REL = 'scripts/managed-files.json';
+const MANAGED_LIST = join(ROOT, MANAGED_LIST_REL);
+/** A store listing of this template must ship sample data (prisma/seed.sql). */
+const SEED_REQUIRED = true;
 const NEVER = [/^\.git\//, /^node_modules\//, /^dist\//, /^\.astro\//, /^\.wrangler\//, /^\.platform\//, /(^|\/)\.DS_Store$/, /^src\/generated\//, /^template\.json$/, /^\.env$/, /^\.dev\.vars/];
 const SKIP_IN_MERGE = [/^package-lock\.json$/];
 
@@ -106,10 +113,11 @@ function localSource(repo) {
 
 const DOWNLOADED_COPY_HELP = [
   'This copy has no newer template next to it to compare with.',
-  'Download the template again (its newest version), unzip it OUTSIDE this project, then run:',
-  '  npm run platform -- check --from <the unzipped folder>',
-  '  npm run platform -- upgrade --from <the unzipped folder>',
-  '(Commit your work first. In a platform checkout, set SITE_DIR to its root instead.)',
+  'A clone of the template\'s repository: keep it as the "upstream" remote (git remote -v), then',
+  '  git fetch upstream --tags',
+  '  git merge "$(git describe --tags --abbrev=0 upstream/main)"',
+  'In the editor, the platform provides the newest template: follow docs/agent/upgrade.md (it passes --from).',
+  'In a platform checkout, set SITE_DIR to its root.',
 ].join('\n');
 
 function localVersion(dir) {
@@ -204,16 +212,139 @@ async function docs() {
   console.log(`saved ${saved} docs (platform rules v${version}) to .platform/docs/ — start with core.md.`);
 }
 
+/**
+ * The template's own files (`scripts/managed-files.json`, this release's list: path → sha256),
+ * compared byte for byte with this project. Changed, missing and (under its folders) added files,
+ * with the git command that puts the template's copies back.
+ */
+function managedProblems(manifest) {
+  const restoreHint = rels => `put back the template's copies: git checkout v${manifest.version} -- ${rels.join(' ')}`;
+  if (!existsSync(MANAGED_LIST)) return {problems: [`${MANAGED_LIST_REL}: missing`], restore: [MANAGED_LIST_REL], restoreHint};
+  let list;
+  try {
+    list = JSON.parse(readFileSync(MANAGED_LIST, 'utf8'));
+  } catch {
+    return {problems: [`${MANAGED_LIST_REL}: not valid JSON`], restore: [MANAGED_LIST_REL], restoreHint};
+  }
+  if (list.version !== manifest.version) {
+    return {
+      problems: [`template.json says ${manifest.version}, but ${MANAGED_LIST_REL} (like the rest of the template's files) is for ${list.version}: a merge was left half done, or template.json was edited`],
+      restore: ['template.json'],
+      // The release the other files are on: managed-files.json comes with them, template.json is one small file.
+      restoreHint: rels => `finish the merge (git merge v${list.version}), or put back the template's copy: git checkout v${list.version} -- ${rels.join(' ')}`,
+    };
+  }
+  const problems = [];
+  const restore = [];
+  const hash = buf => createHash('sha256').update(buf).digest('hex');
+  for (const [rel, want] of Object.entries(list.files ?? {})) {
+    const got = read(join(ROOT, rel));
+    if (got === null) {
+      problems.push(`${rel}: missing`);
+      restore.push(rel);
+    } else if (hash(got) !== want) {
+      const crlf = got.includes(13) && hash(Buffer.from(got.toString('utf8').replace(/\r\n/g, '\n'))) === want;
+      problems.push(`${rel}: ${crlf ? 'Windows line endings (CRLF); the template uses LF (git add --renormalize .)' : 'changed'}`);
+      restore.push(rel);
+    }
+  }
+  for (const dir of list.dirs ?? []) {
+    const full = join(ROOT, dir);
+    if (!existsSync(full)) continue;
+    for (const rel of listFiles(full, ROOT)) if (!(rel in (list.files ?? {}))) problems.push(`${rel}: added (move your code out of ${dir}, then git rm it)`);
+  }
+  return {problems, restore, restoreHint, list};
+}
+
+/** A store listing (this project holds the store's own check, store-check.mjs) of a web app ships sample data. */
+function seedProblems(list) {
+  if (!SEED_REQUIRED || !existsSync(join(ROOT, 'store-check.mjs'))) return {problems: [], notes: []};
+  const seed = read(join(ROOT, 'prisma', 'seed.sql'));
+  const text = seed ? seed.toString('utf8').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ').trim() : '';
+  if (!text) return {problems: ['prisma/seed.sql: missing or empty (seed_missing). Add sample data so the store preview shows a working app.'], notes: []};
+  if (!/\binsert\s+into\b/i.test(text)) return {problems: ['prisma/seed.sql: adds no rows (seed_empty). Give it at least one INSERT of sample data.'], notes: []};
+  const example = list?.exampleSeed;
+  if (example && createHash('sha256').update(seed).digest('hex') === example) {
+    return {problems: [], notes: ['prisma/seed.sql is still the template\'s example data: replace it with sample data for your app.']};
+  }
+  return {problems: [], notes: []};
+}
+
+/** The newest `vX.Y.Z` tag of the `upstream` git remote: {tag}, {error}, or null without that remote. */
+function upstreamLatest() {
+  let remotes = '';
+  try {
+    remotes = execFileSync('git', ['remote'], {cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']});
+  } catch {
+    return null;
+  }
+  if (!remotes.split('\n').includes('upstream')) return null;
+  try {
+    const out = execFileSync('git', ['ls-remote', '--tags', '--refs', 'upstream'], {cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 20000});
+    const tags = out.split('\n').map(line => line.trim().split(/\s+/)[1]?.replace('refs/tags/', '')).filter(t => /^v\d+\.\d+\.\d+$/.test(t ?? ''));
+    if (!tags.length) return {error: 'the upstream remote has no release tags'};
+    return {tag: tags.reduce((best, t) => (newer(t, best) ? t : best))};
+  } catch {
+    return {error: 'the upstream remote did not answer (offline?)'};
+  }
+}
+
 async function check() {
   const manifest = readManifest();
-  const latest = await latestTag(manifest.repo);
   const current = `v${manifest.version}`;
-  if (newer(latest, current)) {
-    console.log(`template ${current} → ${latest} is available. Read its CHANGELOG, then: npm run platform -- upgrade`);
-    process.exitCode = 10;
+  let failed = false;
+
+  // 1. The template's own files: untouched (a store listing is refused otherwise).
+  const managed = managedProblems(manifest);
+  // A site's own rules may follow the template's at the end of AGENTS.md (upgrade.md); a store
+  // listing (it holds store-check.mjs) keeps AGENTS.md, CLAUDE.md and GEMINI.md exactly.
+  const store = existsSync(join(ROOT, 'store-check.mjs'));
+  const ownRules = rel => !store && /^(AGENTS|CLAUDE|GEMINI)\.md$/.test(rel);
+  const soft = managed.problems.filter(p => ownRules(p.split(':')[0]));
+  const hard = managed.problems.filter(p => !soft.includes(p));
+  const restore = managed.restore.filter(rel => !ownRules(rel));
+  for (const line of soft) console.log(`note: ${line} (fine if this site added its own rules at its end; the template's part stays as it is)`);
+  if (hard.length) {
+    failed = true;
+    console.log(`template files changed (never edit them):\n  ${hard.join('\n  ')}`);
+    if (restore.length) console.log(`fix: ${managed.restoreHint(restore)}`);
+  } else if (soft.length) {
+    console.log(`template files: the rest untouched (release ${manifest.version}).`);
   } else {
+    console.log(`template files: untouched (${Object.keys(managed.list?.files ?? {}).length} files, release ${manifest.version}).`);
+  }
+
+  // 2. A store listing's sample data.
+  const seed = seedProblems(managed.list);
+  for (const line of seed.problems) console.log(line);
+  for (const line of seed.notes) console.log(`note: ${line}`);
+  if (seed.problems.length) failed = true;
+
+  // 3. Is a newer release out? The upstream remote (a clone of the template's repository), else
+  //    the folder holding the newest template (`--from`, a `file:` repo, the editor's copy).
+  let latest = null;
+  const upstream = option('--from') ? null : upstreamLatest();
+  if (upstream?.tag) latest = upstream.tag;
+  else if (upstream?.error) console.log(`note: couldn't check for a newer release: ${upstream.error}.`);
+  else {
+    try {
+      latest = await latestTag(manifest.repo);
+    } catch (error) {
+      if (option('--from') || process.env.SITE_DIR) throw error;
+      console.log(`note: couldn't check for a newer release.\n${DOWNLOADED_COPY_HELP}`);
+    }
+  }
+  if (latest && newer(latest, current)) {
+    console.log(
+      upstream?.tag
+        ? `Your template is ${manifest.version}; the current one is ${latest.replace(/^v/, '')}. Merge it before you submit: git fetch upstream --tags, then git merge ${latest}, then npm install, npm run check and node store-check.mjs.`
+        : `template ${current} → ${latest} is available. Read its CHANGELOG, then: npm run platform -- upgrade`
+    );
+    if (!failed) process.exitCode = 10;
+  } else if (latest) {
     console.log(`up to date (template ${current}).`);
   }
+  if (failed) process.exitCode = 1;
 }
 
 async function upgrade() {
