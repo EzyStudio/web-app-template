@@ -4,6 +4,20 @@ Template releases. `npm run platform -- check` says when a newer one is out;
 `npm run platform -- upgrade` applies it (see `scripts/platform.mjs`).
 Managed by the template: replaced on upgrade.
 
+## 0.10.25
+
+Optional upgrade, rules only. What the AI is told about the Preview and git in the editor:
+- `docs/agent/preview.md` (new): the Preview runs on one fixed port per site kind; a command to see, read and restart it, and
+  where its log is; a fix-it checklist (port taken, missing packages, crashed server, stale generated file, merge markers);
+  generated files are never edited by hand; `origin` is the platform's git proxy (a push answers 403 once the editor session
+  ended); a new variable reaches the Preview only at the next Open, which stops every process in the sandbox.
+- `AGENTS.md`: "How changes go live" and the Preview rules come right after "Every task", and the file is under 32 KiB, so an
+  agent that reads only the first 32 KiB (Codex) reads all of it. Moved out, word for word: the version list and the developer
+  merge steps to `docs/agent/upgrade.md`; the full "Buttons and forms" and dashboard rules to `docs/agent/ui.md` (a short
+  version stays). Selling, files and video are said more briefly (the detail is in their topic docs).
+- `docs/agent/publishing.md`: points to `preview.md`; what `origin` is.
+- Steps for an existing site: `docs/agent/upgrade.md` step 8.
+
 ## 0.10.24
 - The player: resume tries again, briefly, when the first seek lands at the start (a source that can't seek yet).
 - The player: YouTube plays on pages that send no referrer (the frame sends the site's origin), Wistia plays on the first press, and a YouTube or Vimeo error shows the site's own "can't play" screen.
