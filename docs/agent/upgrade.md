@@ -25,7 +25,9 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
      - in `model AuthState`: `ownerEnvId String? @map("owner_env_id") @db.VarChar(64)`
      - in BOTH `generator` blocks: `previewFeatures = ["relationJoins"]`
      - the new `model IdempotencyKey`, copied whole from `/tmp/site-template/prisma/schema.prisma`
-   - Packages with known security problems (0.10.17). `package.json` → `devDependencies`: `"vitest": "4.1.12"`. Then, after `npm install`
+   - Packages with known security problems (0.10.17, 0.10.26). `package.json` → `devDependencies`: `"vitest": "4.1.12"`; and at the top
+     level, next to `dependencies`, `"overrides": { "effect": "3.22.5" }` (merge it into this site's `overrides` if it has one; `prisma`
+     pins an `effect` with a known problem). Then, after `npm install`
      in step 9, run `npm audit fix` (never `--force`) and `npm audit`: it must report no high or critical problem. If one is left, it comes
      from a package this site added: update that package to a version without it, or tell the owner which package it is.
    - The new migration folders arrive with the upgrade. Never edit them.
@@ -107,6 +109,15 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
    with the upgrade, and `docs/agent/ui.md` now holds the full "Buttons and forms" and dashboard rules. `AGENTS.md`: copy the
    template's (`cp /tmp/site-template/AGENTS.md AGENTS.md`) and add this site's own rules back at its end, if it had any.
    Nothing in the code changes.
+   **Coming from below 0.10.26** (the required version, and the dashboard's top-bar menus). `AGENTS.md`: copy the template's
+   (`cp /tmp/site-template/AGENTS.md AGENTS.md`) and add this site's own rules back at its end, if it had any.
+   `src/portal/` is this site's own code, so the upgrade leaves it. In the dashboard, clicking the user menu or the theme menu did nothing on a wide screen: the menu opened
+   off screen. If this site still has the template's `Menu` (`src/portal/ui/overlay.tsx`) and top bar
+   (`src/portal/routes.tsx`), take the template's: in `overlay.tsx`, `MenuItem`, `MENU_ITEMS` and the whole `Menu` (it is
+   drawn in `<body>` with `createPortal`, takes a `header` and items with `checked`); in `routes.tsx`, `themeItems` and the
+   account `Menu` with its `header`; in `src/styles/app.css`, `.menu-header-name`, `.menu-header-email` and
+   `.menu-item .menu-item-check`. A site that changed its own menu: keep its changes, and only draw the open menu with
+   `createPortal(…, document.body)`. Check it in the Preview: both menus open under their button, on a wide and a narrow screen.
 9. Check it:
    ```bash
    npm install
@@ -132,6 +143,7 @@ shared history merges once with `--allow-unrelated-histories`. No `upstream` and
 
 ## What each version fixed
 A site below a version has its problems, and these rules can't fix them for it:
+- below 0.10.26: it ships a package with a known security problem (`effect`, through `prisma`);
 - below 0.10.24: no safe helpers for the owner's own Ezypay, Stripe or PayPal account (an app that sells can't let the owner pick);
 - below 0.10.23: it can't upload or play the platform's video;
 - below 0.10.22: file uploads can fail on a custom domain and are limited to 100 MB;

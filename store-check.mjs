@@ -21,7 +21,7 @@ import {join} from 'node:path';
 const RULES = {
   "kit": {
     "template": "astro-app",
-    "version": "0.10.25",
+    "version": "0.10.26",
     "madeOn": "2026-11-23"
   },
   "versionsUrl": "https://ezystudio.com/api/public/templates/v1/versions",
@@ -125,7 +125,7 @@ const RULES = {
     "src/platform/video.ts": "e30c4285ec362e40ab5f94ebc36d1fada69100e22e7b89cf300bf51066fb81d7"
   },
   "agentInstructions": {
-    "AGENTS.md": "a56f528c735483726b97665e8e012fb67ec1f332f205c024a75187801f2fb9ed",
+    "AGENTS.md": "3801b441200f67dcd4ad88eb539687584c667c3f36dc270b84f94d547b8c7af5",
     "CLAUDE.md": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49",
     "docs/agent/auth.md": "16121c98bbdf702a79405ee52b3ba87037a76b4e4c924a815980003f34f9cd71",
     "docs/agent/background-jobs.md": "468bff990103671ea4189769a46e8fd05275a851a74bdc203d1f3b2e6f7dbfda",
@@ -145,16 +145,16 @@ const RULES = {
     "docs/agent/seo.md": "ab4ca0d3658b2278a7f56ca8c6eb696d39e03ac28763de928c0373e181d7c4ae",
     "docs/agent/site-api.md": "75d3745e2d10bda8146a6d9ddb7893ab09be25a09b456aa5302a090459667bc4",
     "docs/agent/store-apps.md": "5c4cb24ff47abace24ba772fb57ddd924a28e33e83da0fdc3b6e741e2a5f18cd",
-    "docs/agent/ui.md": "b62386628c4ee9c5ff7f83fa0485fe1f3932bf06f6bee36a33ec6ef16d93846c",
-    "docs/agent/upgrade.md": "411e4f5fb5299ae45fd9c6098790b9ac2fece74781f06392a36d9ea4a65b41e8",
+    "docs/agent/ui.md": "46f6061e6d82757844ff24d72fe55dba34095ea52a6805182bced5ae705b30fd",
+    "docs/agent/upgrade.md": "3850ec7af1fa34ac14bd68f55ec703daede2d9cfaf1dce79ee353dfc384b550c",
     "docs/agent/video.md": "ec0e2730eac7f2ba3683bf0528f245de5121367569f3a3a045d1e22934123c09",
     "GEMINI.md": "336cc4fbf19beaada7ccf9986414fa91851a8d7a07dfb3ccbe800a69eed0ab49"
   },
   "managedFiles": {
-    "CHANGELOG.md": "642906334a1f06ebebb27a84a20b79954ef7922071891384cf9ccce2cc98d08d",
-    "scripts/managed-files.json": "3c388d46ea9ee6ed3c9463329985cafcf74e0c15eb0c3f97261d16cc3a9da11c",
+    "CHANGELOG.md": "dbdec0a52a629216b30c9d76e80d6d9db23147c2cb92c06f464d2bd3b573f694",
+    "scripts/managed-files.json": "772fc07c96102ac7cb61a4c1f7f1b3f2bd6385b35e2289284e0a2f5b8385baf4",
     "scripts/platform.mjs": "1ca6f149beb3d1a0f0d28cc2e1b7e50e469ad79d9792bd175823ab194aec08d6",
-    "template.json": "adb49f7beaa53434aab91da087d257650333018b8f2de7ab36dcf389e1a2fb93"
+    "template.json": "aa8dfb3f9198ff32342ef254c4f213de69217037cbca6ffe718898c2e5f50870"
   },
   "developerFiles": [
     "DEVELOPERS.md",

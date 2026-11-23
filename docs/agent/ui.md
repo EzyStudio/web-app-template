@@ -24,7 +24,10 @@ piece live. Read its code (`src/portal/screens/components.tsx`) for usage.
   (`<div className="app-page screen-orders">` → `.screen-orders .x {}`).
 - NO `style={…}` / `style=""`: the CSP blocks inline styles. Sizes come from classes; charts
   draw with SVG attributes (`<rect height={h}>`). Positioning that must be computed (the `Menu`)
-  is set through `element.style` in an effect, which the CSP allows.
+  is set through `element.style` in an effect, which the CSP allows. Anything `position: fixed` that
+  floats over the page (a menu, a popover) is drawn in `<body>` with `createPortal`, as `Menu` is: inside
+  the top bar (`backdrop-filter`) or anything with `transform` / `filter`, `fixed` is measured from that
+  element and it opens off screen.
 - Never a coloured stripe on one side of a card, notice, row or menu item (left border, inset
   shadow bar). Show state with a full 1px border, a soft fill, an icon tile or a badge.
 - Never a second UI library, icon pack, chart library or CSS framework. Missing a piece: add
@@ -126,7 +129,8 @@ Build every screen from the kit; see it live at `/dashboard/components` in the P
 - The shell (`src/portal/routes.tsx`): `App.astro` layout (full height, no site header/footer,
   `noindex`); a sidebar with the site's logo, grouped nav with icons, admin items hidden by
   `abilities`, "Back to the website"; a top bar with the screen title (the only `<h1>`), the
-  theme menu and the user menu; a drawer with a scrim on small screens. After each navigation
+  theme menu and the user menu (who is signed in, the theme with the current one checked, Your account,
+  Back to the website, Sign out); a drawer with a scrim on small screens. After each navigation
   the shell sets the tab title from the route's `staticData.title` and moves focus to that
   `<h1>`; keep both. Toasts (`useToast`) and confirmations (`useConfirm`) are mounted there.
 - Overview first: `Stat` tiles (cheap numbers only: `pageCount` "25+", never `count()`), then

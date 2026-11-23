@@ -4,6 +4,16 @@ Template releases. `npm run platform -- check` says when a newer one is out;
 `npm run platform -- upgrade` applies it (see `scripts/platform.mjs`).
 Managed by the template: replaced on upgrade.
 
+## 0.10.26
+
+**Required upgrade.** A package with a known security problem: `effect` 3.20.0 (a high-severity ReDoS,
+GHSA-7589-6fvf-x4pw), which `prisma` pulls in through `@prisma/config` at an exact version. `package.json` now has
+`"overrides": { "effect": "3.22.5" }`, so `npm audit` reports no problem again.
+- The dashboard: clicking the user menu or the theme menu did nothing on a wide screen (the menu opened off screen, measured
+  from the top bar). `Menu` is now drawn in `<body>`; the user menu shows who is signed in and the theme, with the current
+  choice checked, then Your account, Back to the website and Sign out. `Menu` takes a `header` and items with `checked`.
+- Steps for an existing site: `docs/agent/upgrade.md` step 3 (the `effect` override; "Coming from below 0.10.26" for the menus).
+
 ## 0.10.25
 
 Optional upgrade, rules only. What the AI is told about the Preview and git in the editor:

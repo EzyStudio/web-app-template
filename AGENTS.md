@@ -21,10 +21,10 @@ is compared byte for byte). Read `docs/agent/<topic>.md` in this folder instead 
 `{{DOCS_URL}}`; for any other one, `DEVELOPERS.md` or `STORE-LISTING.md`, if present, says what it is on
 that computer; otherwise it isn't available there: do the task without it and say so in one line.
 
-## First: is this site on the required template version? (0.10.24)
-Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.24, this site
-has problems these rules can't fix for it:** from the owner's own payment provider (below 0.10.24) and the platform's video
-(below 0.10.23) to packages with known security problems (below 0.10.17) and account takeover (below 0.10.16); `upgrade.md`
+## First: is this site on the required template version? (0.10.26)
+Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.26, this site
+has problems these rules can't fix for it:** from packages with known security problems (below 0.10.26 and 0.10.17), the owner's
+own payment provider (below 0.10.24) and the platform's video (below 0.10.23) to account takeover (below 0.10.16); `upgrade.md`
 "What each version fixed" lists them all.
 
 **Upgrade it now, as your first step, without asking.** The owner won't know what to answer, and nothing reaches visitors until they

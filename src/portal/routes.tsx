@@ -43,6 +43,7 @@ import {
   initials,
   LoadingBlock,
   Menu,
+  type MenuItem,
   ToastProvider,
 } from './ui';
 
@@ -264,6 +265,12 @@ function Shell() {
 
   const name = siteName ?? 'My site';
   const logo = site.data?.site?.logo;
+  // The same three choices in the theme button and the account menu, the current one checked.
+  const themeItems: MenuItem[] = [
+    {label: 'Light', icon: 'sun', checked: theme === 'light', onSelect: () => setTheme('light')},
+    {label: 'Dark', icon: 'moon', checked: theme === 'dark', onSelect: () => setTheme('dark')},
+    {label: 'Same as this device', icon: 'monitor', checked: theme === 'system', onSelect: () => setTheme('system')},
+  ];
   return (
     <div className="app-shell" data-nav-open={open ? '' : undefined}>
       <aside className="app-sidebar" aria-label="Sidebar">
@@ -313,11 +320,7 @@ function Shell() {
             <Menu
               label={`Theme: ${theme}`}
               trigger={<Icon name={theme === 'dark' ? 'moon' : theme === 'light' ? 'sun' : 'monitor'} size={18} />}
-              items={[
-                {label: 'Light', icon: 'sun', onSelect: () => setTheme('light')},
-                {label: 'Dark', icon: 'moon', onSelect: () => setTheme('dark')},
-                {label: 'Same as this device', icon: 'monitor', onSelect: () => setTheme('system')},
-              ]}
+              items={themeItems}
             />
             {viewer && (
               <Menu
@@ -330,7 +333,16 @@ function Shell() {
                   </>
                 }
                 disabled={signingOut}
+                header={
+                  <>
+                    <span className="menu-header-name">{viewer.name || 'Signed in'}</span>
+                    {/* The owner's email is never known to the site (auth.md): say who they are instead. */}
+                    <span className="menu-header-email">{viewer.email || (viewer.platformOwner ? 'Owner of this site' : '')}</span>
+                  </>
+                }
                 items={[
+                  ...themeItems,
+                  'separator',
                   {label: 'Your account', icon: 'user', onSelect: () => void navigate({to: '/account'})},
                   {label: 'Back to the website', icon: 'globe', onSelect: () => window.location.assign('/')},
                   'separator',

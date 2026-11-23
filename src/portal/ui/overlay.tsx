@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import {createPortal} from 'react-dom';
 
 import {Button, IconButton} from './button';
 import {Notice} from './display';
@@ -277,8 +278,19 @@ export function ToastProvider({children}: {children: ReactNode}) {
 // ------------------------------------------------------------------ menu --
 
 export type MenuItem =
-  | {label: string; icon?: IconName; onSelect: () => void; danger?: boolean; disabled?: boolean}
+  | {
+      label: string;
+      icon?: IconName;
+      onSelect: () => void;
+      danger?: boolean;
+      disabled?: boolean;
+      /** One of a set of choices (the theme): shown with a check, announced as checked. */
+      checked?: boolean;
+    }
   | 'separator';
+
+/** Every item a keyboard can reach: plain items and choices. */
+const MENU_ITEMS = '[role="menuitem"]:not(:disabled), [role="menuitemradio"]:not(:disabled)';
 
 /**
  * A dropdown of actions: a row's "More" (⋯), the user menu. Keyboard: Enter /
@@ -287,15 +299,21 @@ export type MenuItem =
  *
  * Positioned `fixed` from the trigger, so a table's scroll box never clips it
  * (set through the CSSOM, which the CSP allows; never a `style=""` attribute).
+ * Drawn at the end of <body> (a portal): inside an element with `backdrop-filter`,
+ * `transform` or `filter` (the top bar), `fixed` is measured from THAT element, and
+ * the menu opened off screen.
  */
 export function Menu({
   items,
   label,
   trigger,
+  header,
   disabled,
   align = 'end',
 }: {
   items: MenuItem[];
+  /** Shown at the top, not focusable (the user menu: who is signed in). */
+  header?: ReactNode;
   /** What the menu is for ("Actions for Sam Rivera"): the trigger's label. */
   label: string;
   /** A custom trigger's content (the user menu's avatar); default ⋯. */
@@ -310,7 +328,7 @@ export function Menu({
   const actions = items.filter((item): item is Exclude<MenuItem, 'separator'> => item !== 'separator');
 
   const focusItem = (index: number) => {
-    const nodes = list.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
+    const nodes = list.current?.querySelectorAll<HTMLButtonElement>(MENU_ITEMS);
     if (!nodes?.length) return;
     nodes[(index + nodes.length) % nodes.length]?.focus();
   };
@@ -346,7 +364,7 @@ export function Menu({
   }, [open, align]);
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    const nodes = [...(list.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];
+    const nodes = [...(list.current?.querySelectorAll<HTMLButtonElement>(MENU_ITEMS) ?? [])];
     const at = nodes.indexOf(document.activeElement as HTMLButtonElement);
     if (event.key === 'ArrowDown') focusItem(at + 1);
     else if (event.key === 'ArrowUp') focusItem(at - 1);
@@ -378,30 +396,35 @@ export function Menu({
         }}>
         {trigger ?? <Icon name="more" size={16} />}
       </button>
-      {open && (
-        <div ref={list} id={id} className="menu" role="menu" aria-label={label} onKeyDown={onKeyDown}>
-          {items.map((item, i) =>
-            item === 'separator' ? (
-              <div key={`s${i}`} className="menu-separator" role="separator" />
-            ) : (
-              <button
-                key={item.label}
-                type="button"
-                role="menuitem"
-                className={item.danger ? 'menu-item menu-item-danger' : 'menu-item'}
-                disabled={item.disabled}
-                tabIndex={-1}
-                onClick={() => {
-                  close();
-                  item.onSelect();
-                }}>
-                {item.icon && <Icon name={item.icon} size={16} />}
-                {item.label}
-              </button>
-            )
-          )}
-        </div>
-      )}
+      {open &&
+        createPortal(
+          <div ref={list} id={id} className="menu" role="menu" aria-label={label} onKeyDown={onKeyDown}>
+            {header && <div className="menu-header">{header}</div>}
+            {items.map((item, i) =>
+              item === 'separator' ? (
+                <div key={`s${i}`} className="menu-separator" role="separator" />
+              ) : (
+                <button
+                  key={item.label}
+                  type="button"
+                  role={item.checked === undefined ? 'menuitem' : 'menuitemradio'}
+                  aria-checked={item.checked}
+                  className={item.danger ? 'menu-item menu-item-danger' : 'menu-item'}
+                  disabled={item.disabled}
+                  tabIndex={-1}
+                  onClick={() => {
+                    close();
+                    item.onSelect();
+                  }}>
+                  {item.icon && <Icon name={item.icon} size={16} />}
+                  {item.label}
+                  {item.checked && <Icon name="check" size={16} className="menu-item-check" />}
+                </button>
+              )
+            )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
