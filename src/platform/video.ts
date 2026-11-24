@@ -151,10 +151,11 @@ export async function getVideo(requestUrl: string | URL, id: string): Promise<Vi
   return res.ok ? {ok: true, data: res.data.video} : res;
 }
 
-/** This app's videos, newest first. `before` = the `next` of the previous page. */
-export function listVideos(requestUrl: string | URL, options: {before?: string; limit?: number} = {}) {
+/** This app's videos, newest first. `before` = the `next` of the previous page; `q` = words in the title. */
+export function listVideos(requestUrl: string | URL, options: {before?: string; limit?: number; q?: string} = {}) {
   const query = new URLSearchParams();
   if (options.before) query.set('before', options.before);
+  if (options.q) query.set('q', options.q.slice(0, 100));
   if (options.limit) query.set('limit', String(Math.min(100, Math.max(1, Math.floor(options.limit)))));
   const qs = query.toString();
   return call<{videos: Video[]; next: string | null}>(requestUrl, 'GET', qs ? `?${qs}` : '');

@@ -21,9 +21,9 @@ is compared byte for byte). Read `docs/agent/<topic>.md` in this folder instead 
 `{{DOCS_URL}}`; for any other one, `DEVELOPERS.md` or `STORE-LISTING.md`, if present, says what it is on
 that computer; otherwise it isn't available there: do the task without it and say so in one line.
 
-## First: is this site on the required template version? (0.10.26)
-Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.26, this site
-has problems these rules can't fix for it:** from packages with known security problems (below 0.10.26 and 0.10.17), the owner's
+## First: is this site on the required template version? (0.10.27)
+Read `version` in `template.json` at the start of a session, new or resumed, before anything else. **If it's below 0.10.27, this site
+has problems these rules can't fix for it:** from the owner's uploaded files you can't find (below 0.10.27) and packages with known security problems (below 0.10.26 and 0.10.17), the owner's
 own payment provider (below 0.10.24) and the platform's video (below 0.10.23) to account takeover (below 0.10.16); `upgrade.md`
 "What each version fixed" lists them all.
 
@@ -108,7 +108,7 @@ upgraded and can be older; when they differ, the current copy wins:
 | `seo.md` | a new public page, titles and descriptions, URLs, social cards, sitemap, robots.txt, RSS |
 | `site-api.md` | any server route or backend code |
 | `background-jobs.md` | anything that happens later, on a schedule, with retries: reminders, follow-ups, summaries, cleanups |
-| `files.md` | anything that stores a file a person picks (photos, documents, attachments, avatars, audio) or shows one back |
+| `files.md` | anything that stores a file a person picks (photos, documents, attachments, avatars, audio) or shows one back; a file or video the OWNER uploaded ("use my hero photo"): find it with `npm run platform -- files search`, ask which when there are two |
 | `video.md` | any video people watch in the app: lessons, courses, a video library, members' or product videos (upload, play, who may watch) |
 | `preview.md` | the Preview is broken, blank or stale; the dev server, its port or log; a generated file; a merge left half done |
 | `publishing.md` | git, scripts, dependencies, config, redirects, going live |

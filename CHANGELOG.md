@@ -4,6 +4,21 @@ Template releases. `npm run platform -- check` says when a newer one is out;
 `npm run platform -- upgrade` applies it (see `scripts/platform.mjs`).
 Managed by the template: replaced on upgrade.
 
+## 0.10.27
+
+**Required upgrade.** The owner's own files: they upload photos, documents and videos in the dashboard (Storage, or the
+editor's Files button) without any code, and the AI finds them by name.
+- `npm run platform -- files search <words> [--kind …] [--library]` and `files videos <words>` (new): the owner's files and
+  videos by name, with the editor's Site Key (never printed). In the editor the key also finds the owner's live library
+  files, read only.
+- `docs/agent/files.md` "Files the owner uploaded" (new), `docs/agent/video.md` "Videos the owner uploaded" (new): find,
+  never guess; one match → use it, several → ask which, none → ask the owner to upload it; how each kind is used.
+- `src/platform/files.ts`: `listFiles` takes `q`, `kind` and `source`; files carry `source`, `publicPath` and
+  `publicUrl` (a public file's permanent link straight from the file CDN: keep it in your table and put it in pages;
+  `publicFileUrl(file)` returns it when the file has it).
+  `src/platform/video.ts`: `listVideos` takes `q`.
+- Steps for an existing site: `docs/agent/upgrade.md` "Coming from below 0.10.27".
+
 ## 0.10.26
 
 **Required upgrade.** A package with a known security problem: `effect` 3.20.0 (a high-severity ReDoS,

@@ -224,6 +224,12 @@ itself stays the same for everyone and holds no link. A video your app lets gues
 sends a random id for the browser session as `x-viewer-session`, which the route above passes on (`guestId`) with
 `guest: true` and the visitor's IP.
 
+## Videos the owner uploaded
+The owner can upload videos themselves, without code: the editor's **Files** button or the dashboard's Storage →
+Video on demand. When they say "add the welcome video", find it with `npm run platform -- files videos <words>`
+(`files.md` "Files the owner uploaded": one match → use it; several → list them and ask which; none → say so and ask
+them to upload it). Keep its video id, and play it with the player like any other video (a fresh link per viewer).
+
 ## Uploading
 - Every upload is three steps: your route asks (`createUpload`), the browser sends (`uploadVideo`), your route
   confirms (`confirm`). Never skip `confirm`, and never treat a video as there before it answers.

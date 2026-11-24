@@ -604,6 +604,61 @@ async function prices() {
 }
 
 /*
+ * `files` (docs/agent/files.md "Files the owner uploaded"): find the owner's files and videos by name, with the
+ * editor's Site Key (never printed). Read only.
+ *   files search <words> [--kind image|video|audio|document] [--library]
+ *   files videos <words>
+ */
+async function files() {
+  const site = (process.env.SITE_URL ?? '').replace(/\/+$/, '');
+  const key = process.env.SITE_KEY ?? '';
+  if (!site || !key) throw new Error('needs SITE_URL and SITE_KEY (the editor sets both). Outside the editor, ask the owner which file to use.');
+  const get = async path => {
+    const res = await fetch(`${site}/api/site/v1${path}`, {
+      headers: {accept: 'application/json', authorization: `Bearer ${key}`, 'user-agent': 'site-platform-script'},
+      signal: AbortSignal.timeout(15000),
+    }).catch(() => null);
+    if (!res) throw new Error('the platform did not answer.');
+    const answer = await res.json().catch(() => null);
+    if (!res.ok) {
+      const error = answer?.errors?.[0];
+      throw new Error(`${error?.code ?? res.status}: ${error?.message ?? 'refused.'}`);
+    }
+    return answer?.data;
+  };
+  const [sub = 'search', ...rest] = args;
+  const words = rest.filter(w => !w.startsWith('--') && w !== option('--kind')).join(' ').trim().slice(0, 100);
+  const size = n => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+  if (sub === 'videos') {
+    const out = await get(`/videos?limit=20${words ? `&q=${encodeURIComponent(words)}` : ''}`);
+    const list = out?.videos ?? [];
+    if (!list.length) console.log(words ? `no video called "${words}". Ask the owner to upload it: the Files button in the editor, or Storage → Video on demand.` : 'no videos yet.');
+    else console.log(`${list.length} video(s)${out.next ? ' (more: narrow the words)' : ''}:`);
+    for (const v of list) console.log(`  ${v.id}  "${v.title}"  ${v.status}${v.lengthSeconds ? (v.lengthSeconds < 60 ? `  ${Math.round(v.lengthSeconds)} s` : `  ${Math.round(v.lengthSeconds / 60)} min`) : ''}  ${String(v.createdAt ?? '').slice(0, 10)}`);
+    return;
+  }
+  if (sub !== 'search') throw new Error('usage: files search <words> [--kind image|video|audio|document] [--library] | files videos <words>');
+  const kind = option('--kind');
+  if (kind && !['image', 'video', 'audio', 'document'].includes(kind)) throw new Error('--kind: image, video, audio or document.');
+  const query = new URLSearchParams({limit: '20'});
+  if (words) query.set('q', words);
+  if (kind) query.set('kind', kind);
+  if (rest.includes('--library')) query.set('source', 'library');
+  const out = await get(`/files?${query}`);
+  const list = out?.files ?? [];
+  if (!list.length) {
+    console.log(words ? `no file called "${words}". Ask the owner to upload it with the Files button in the editor (or the dashboard's Storage page), or for another word.` : 'no files yet.');
+    return;
+  }
+  console.log(`${list.length} file(s)${out.next ? ' (more: narrow the words)' : ''}:`);
+  for (const f of list) {
+    const where = `${f.source === 'library' ? 'uploaded by the owner' : 'uploaded in the app'}, ${f.environment === 'staging' ? 'Preview' : 'live'}`;
+    console.log(`  ${f.id}  "${f.name}"  ${f.contentType}  ${size(f.size)}  ${f.visibility}  ${String(f.createdAt ?? '').slice(0, 10)}  (${where})`);
+    if (f.publicUrl || f.publicPath) console.log(`      link: ${f.publicUrl || f.publicPath}`);
+  }
+}
+
+/*
  * `plans` (docs/agent/plans-catalogue.md): the owner's REAL client plans, read with the editor's
  * Site Key (never printed), so a pricing section's build-time fallback is never invented.
  * `--write` saves the answer to src/content/plans.json, the shape the live script reads.
@@ -1002,11 +1057,11 @@ Then create your admin account (README "Create your admin account"):
   npm run dev-admin -- you@example.com`);
 }
 
-const commands = {docs, check, upgrade, jobs, prices, plans, setup, 'dev-admin': devAdmin, 'demo-login': demoLogin};
+const commands = {docs, check, upgrade, jobs, prices, plans, files, setup, 'dev-admin': devAdmin, 'demo-login': demoLogin};
 // Run as a command (`npm run platform -- …`), not when a test imports the helpers above.
 const isMain = Boolean(process.argv[1]) && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain && !commands[command]) {
-  console.log('usage: npm run platform -- docs [--site URL] | check [--from DIR] | upgrade [--to vX.Y.Z] [--from DIR] [--base DIR] [--dry-run] [--force] | jobs | prices [add --key … --name … --amount-cents … --currency … --interval …] | plans [--write] | setup | dev-admin <email> | demo-login --email <e> --password <p>');
+  console.log('usage: npm run platform -- docs [--site URL] | check [--from DIR] | upgrade [--to vX.Y.Z] [--from DIR] [--base DIR] [--dry-run] [--force] | jobs | prices [add --key … --name … --amount-cents … --currency … --interval …] | plans [--write] | files search <words> [--kind …] [--library] | files videos <words> | setup | dev-admin <email> | demo-login --email <e> --password <p>');
 } else if (isMain) {
   commands[command]().catch(error => {
     console.error(`platform ${command}: ${error.message}`);

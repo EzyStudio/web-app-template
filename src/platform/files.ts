@@ -167,11 +167,13 @@ export function fileUrl(
 }
 
 /**
- * A PUBLIC file's stable link on this site's own address (it redirects to a fresh short-lived
- * link). Private files have none: use fileUrl().
+ * A PUBLIC file's link for pages. With `publicUrl` (the file as the platform answered it: keep that
+ * field in your table): the permanent link straight from the file CDN, never served by the platform or
+ * this site. Without it: the stable link on this site's own address, which redirects to a fresh
+ * short-lived link. Private files have none: use fileUrl().
  */
-export function publicFileUrl(file: Pick<StoredFile, 'id' | 'name'>): string {
-  return `/__platform/files/${file.id}/${encodeURIComponent(file.name)}`;
+export function publicFileUrl(file: Pick<StoredFile, 'id' | 'name'> & {publicUrl?: string | null}): string {
+  return file.publicUrl || `/__platform/files/${file.id}/${encodeURIComponent(file.name)}`;
 }
 
 export async function deleteFile(requestUrl: string | URL, id: string) {
@@ -183,11 +185,27 @@ export async function getFile(requestUrl: string | URL, id: string) {
   return res.ok ? ({ok: true, data: res.data.file} as const) : res;
 }
 
-/** Ready files, newest first. `before` = the `next` of the previous page. */
-export function listFiles(requestUrl: string | URL, options: {before?: string; limit?: number} = {}) {
+/**
+ * Ready files, newest first. `before` = the `next` of the previous page. `q`: words in the name (each must
+ * appear); `kind`: image, video, audio or document; `source: 'library'`: only what the owner uploaded in the
+ * dashboard (in the editor, the owner's live library files are found too, read only: `files.md`).
+ */
+export function listFiles(
+  requestUrl: string | URL,
+  options: {
+    before?: string;
+    limit?: number;
+    q?: string;
+    kind?: 'image' | 'video' | 'audio' | 'document';
+    source?: 'site' | 'library';
+  } = {}
+) {
   const query = new URLSearchParams();
   if (options.before) query.set('before', options.before);
   if (options.limit) query.set('limit', String(options.limit));
+  if (options.q) query.set('q', options.q.slice(0, 100));
+  if (options.kind) query.set('kind', options.kind);
+  if (options.source) query.set('source', options.source);
   const qs = query.toString();
   return call<{files: StoredFile[]; next: string | null}>(requestUrl, 'GET', qs ? `?${qs}` : '');
 }

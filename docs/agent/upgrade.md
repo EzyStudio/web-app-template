@@ -118,6 +118,11 @@ Start with a clean git tree: commit what's there. Never stash: Publish ships the
    account `Menu` with its `header`; in `src/styles/app.css`, `.menu-header-name`, `.menu-header-email` and
    `.menu-item .menu-item-check`. A site that changed its own menu: keep its changes, and only draw the open menu with
    `createPortal(…, document.body)`. Check it in the Preview: both menus open under their button, on a wide and a narrow screen.
+   **Coming from below 0.10.27** (the required version: the owner's own files). Managed files only (`scripts/platform.mjs`,
+   `src/platform/files.ts`, `files-browser.ts`, `video.ts`, `docs/agent/`): the upgrade brings them, and nothing in this
+   site's own code changes. `AGENTS.md`: copy the template's (`cp /tmp/site-template/AGENTS.md AGENTS.md`) and add this
+   site's own rules back at its end, if it had any. Check it: `npm run platform -- files search a` answers (a list, or
+   "no file called").
 9. Check it:
    ```bash
    npm install
@@ -143,6 +148,7 @@ shared history merges once with `--allow-unrelated-histories`. No `upstream` and
 
 ## What each version fixed
 A site below a version has its problems, and these rules can't fix them for it:
+- below 0.10.27: it can't find the files and videos the owner uploaded in the dashboard (`files search`);
 - below 0.10.26: it ships a package with a known security problem (`effect`, through `prisma`);
 - below 0.10.24: no safe helpers for the owner's own Ezypay, Stripe or PayPal account (an app that sells can't let the owner pick);
 - below 0.10.23: it can't upload or play the platform's video;

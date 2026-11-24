@@ -16,6 +16,17 @@ export interface StoredFile {
   visibility: FileVisibility;
   status: 'pending' | 'ready';
   environment: 'production' | 'staging';
+  /** `library`: the owner uploaded it in the dashboard (Storage, or the editor's Files button). Older platforms leave it out. */
+  source?: 'site' | 'library';
+  /**
+   * A public file's permanent link straight from the file CDN (a long-lived token): put it in pages as it is;
+   * it is never served by the platform or this site. Null when private or when the storage has no CDN (use
+   * `publicPath`). It lasts years: deleting the file stops it; making it private only stops new links. Older
+   * platforms leave it out.
+   */
+  publicUrl?: string | null;
+  /** A public file's stable link on this site (`/__platform/files/<id>/<name>`), else null. Older platforms leave it out. */
+  publicPath?: string | null;
   createdAt: string;
   completedAt: string | null;
 }

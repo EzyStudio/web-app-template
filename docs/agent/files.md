@@ -65,8 +65,9 @@ Both are MANAGED: never edit them. Every server helper resolves to `{ok: true, d
 | The file is… | `visibility` | Show it with |
 | --- | --- | --- |
 | Personal or business documents: IDs, CVs, invoices, medical forms, anything for some people only | `private` (default) | a short-lived link from YOUR route, after your permission check |
-| Meant for everyone: product photos, a menu PDF, a team photo, a public podcast episode | `public` | `publicFileUrl(file)`: a stable link on this site, no call needed |
-When unsure, private. A public file's link works for anyone who has it.
+| Meant for everyone: product photos, a menu PDF, a team photo, a public podcast episode | `public` | its `publicUrl` (`publicFileUrl(file)`): a CDN link that lasts years, straight in the page, no call needed |
+When unsure, private. A public file's link works for anyone who has it, for years, even after the file is made
+private: only deleting the file stops it. So a file is public only when it may be seen by anyone, forever.
 
 ## Recipe: attachments a signed-in person uploads
 A table owns the files (who uploaded what, for which record). `prisma/schema.prisma`
@@ -183,9 +184,48 @@ async function upload(file: File) {
   `?download=1`: every view checks access and gets a fresh short link.
 
 ## Public files (no route needed to show them)
-`createUpload(c.req.url, {..., visibility: 'public'})`, then link `publicFileUrl(file)`
-(`/__platform/files/<id>/<name>` on this site; it redirects to storage). Use it for images on
-public pages. Still keep the file id in your table, and still delete through your route.
+`createUpload(c.req.url, {..., visibility: 'public'})`, then link `publicFileUrl(file)`. The file the platform
+answers (`completeUpload`, `getFile`, `listFiles`) carries `publicUrl`: its permanent link straight from the file
+CDN, served by the CDN and never by the platform or this site. Keep the file id AND `publicUrl` in your table and
+put `publicUrl` in pages as it is (`<img src>`); it works on every host, the Preview too. No `publicUrl` (the storage
+has no CDN): `publicFileUrl(file)` gives the stable link on this site (`/__platform/files/<id>/<name>`, it redirects
+to the storage). Still delete through your route. A public link lasts years: a file that must stop being reachable
+is deleted (making it private only stops new links). Anything that must stay private is uploaded private from the start.
+Never build or shorten a CDN link yourself, and never put a private file's signed link in a page.
+
+## Files the owner uploaded (the library)
+The owner (or their team) uploads photos, documents and videos themselves, without any code: in the dashboard's
+**Storage** page, or the **Files** button in the editor. They land in this app's live storage, public unless they chose
+private, and the app's own uploads are listed there too. When the owner says "use the hero photo", "put my price list
+PDF on the page" or "add the welcome video":
+1. **Find it, never guess a link**: `npm run platform -- files search <words from their request>` (add
+   `--kind image|video|audio|document` when they said which; `--library` for only what they uploaded). For a streamed
+   video: `npm run platform -- files videos <words>`. Read only, with the editor's Site Key, which it never prints.
+2. **One match**: use it, and say which file in one line ("I used hero-salon.jpg, uploaded 12 Nov").
+   **Two or more**: list them (name, kind, size, date) and ask which one before writing code. **None**: say so in one
+   plain line, and ask them to upload it with the **Files** button (or for another word). Never invent a file, a link
+   or a placeholder image instead.
+3. **Use it the way its kind needs**:
+   - a public image or document on a page: its `link` exactly as the command prints it: the permanent CDN link
+     (`https://…`, served by the CDN, never by the platform), or `/__platform/files/<id>/<name>` when the storage
+     has no CDN. Both work on the live address, a custom domain and the Preview alike. A plain `<img src>` with
+     `width`, `height`, `alt` and `loading="lazy"` below the fold: it is served as uploaded, not resized at build. A
+     photo that must be resized at build (a large hero) belongs in `src/assets/`: tell the owner, and copy it only if
+     they ask.
+   - a private file: never its link on a public page. Show it through a route that checks who may see it, then
+     redirects to a fresh short link (the attachments recipe above), and keep the file id in your table.
+   - a streamed video: its video id, played with the platform's player (`video.md`), never a file link.
+4. Keep the **file id** where the code needs it (a setting, a table row, `src/content/`), and for a public file its
+   `link` too (the CDN link lasts years, so it is safe in a prerendered page, a blog post or `src/content/`). Never
+   a private file's signed link: those expire in hours.
+In the editor, a name search (or `--library`) finds the owner's live library files as well as the Preview's own
+uploads, for reading only: it can't change or delete a live file, and files visitors uploaded to the live app stay out
+of its reach. A plain list in the Preview (`listFiles()` with no `q`) shows only the Preview's own uploads, as before.
+Owner pasted a line from the Files panel ("Use the image "…" (file id file_…, public link https://…)"): that names
+the file and its link exactly, so skip the search and use that link.
+**A site without the command** (older than 0.10.27): the same search is
+`curl -s -H "authorization: Bearer $SITE_KEY" "$SITE_URL/api/site/v1/files?q=<words>&limit=20"` (and `/videos?q=`)
+in the editor's terminal: never echo or write the key, and never put this call in the site's code.
 
 ## Limits and errors
 - One file: 1 byte to 5 GB (the platform's ceiling: set your own per feature). Types: images (PNG, JPEG, WebP, GIF, AVIF, SVG), PDF, plain text,
@@ -218,7 +258,8 @@ public pages. Still keep the file id in your table, and still delete through you
 - Send `{{SITE_KEY_ENV}}` (or any platform call) from the browser; the browser only calls
   `/site-api/*` and `upload.url`.
 - Store file bytes in the database, in `public/`, or as base64 in JSON.
-- Build a storage link yourself, or save a `fileUrl()` link: links expire.
+- Build or edit a storage or CDN link yourself, or save a `fileUrl()` link (it expires). The one link you keep is a
+  public file's `publicUrl`, exactly as the platform gave it.
 - Accept a file id from the browser without checking it is in YOUR table and theirs to see.
 - Make personal documents `public`.
 - Proxy file bytes through `/site-api` (body limit 64 KB, Worker memory 128 MB).
